@@ -61,3 +61,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Add the following attributes to the User model
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number']
+
+    def has_module_perms(self, app_label):
+        return self.is_staff and self.user_type == 'staff'
+
+    def has_perm(self, perm, obj=None):
+        return self.is_staff and self.user_type == 'staff'
