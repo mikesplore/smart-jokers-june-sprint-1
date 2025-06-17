@@ -23,4 +23,10 @@ Follow the steps below:
 6. Create APIS that can be consumed on the frontend: enable erveryone to checkin and checkout everyday
 7. Write tests for your Apps and APIs
 
-wait for instructions
+Data Source:
+
+Generate dummy data. USe the signin form for table fields.
+
+## Sprint 2:
+
+Create a Dashboard for the Staff users only that shows all probable analysis from data collected. The Dashboard should be within the Django Project(i.e use django's template system for that)
