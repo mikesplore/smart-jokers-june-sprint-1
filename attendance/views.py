@@ -6,6 +6,7 @@ from users.models import User
 from .models import AttendanceRecord
 from .forms import CheckInForm, CheckOutForm
 
+
 def check_in(request, user_id):
     user = get_object_or_404(User, id=user_id)
     today = timezone.now().date()
@@ -72,3 +73,15 @@ def attendance_list(request):
     today = timezone.now().date()
     records = AttendanceRecord.objects.filter(date=today).order_by('-check_in_time')
     return render(request, 'attendance/list.html', {'records': records})
+
+def attendance_dashboard(request):
+    """Dashboard view for the attendance app"""
+    today = timezone.now().date()
+    records = AttendanceRecord.objects.filter(date=today).order_by('-check_in_time')
+    
+    context = {
+        'records': records,
+        'today': today,
+    }
+    
+    return render(request, 'attendance/dashboard.html', context)
