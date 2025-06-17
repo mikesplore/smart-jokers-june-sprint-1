@@ -1,69 +1,138 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Attendance Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-</head>
-<body>
-    {% extends "base.html" %}
+{% extends "base.html" %}
 
-    {% block title %}Attendance Dashboard{% endblock %}
+{% block title %}Attendance Dashboard{% endblock %}
 
-    {% block content %}
-    <div class="container mt-4">
-        <h1>Attendance Dashboard</h1>
-        {% if user.is_staff %}
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h3>Today's Attendance ({{ today|date:"F j, Y" }})</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <a href="{% url 'attendance_list' %}" class="btn btn-info mr-2">View Full Attendance List</a>
-                            <a href="{% url 'analytics_dashboard' %}" class="btn btn-success">View Analytics Dashboard</a>
-                        </div>
-                        
-                        {% if records %}
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Type</th>
-                                        <th>Check-in Time</th>
-                                        <th>Check-out Time</th>
-                                        <th>Purpose</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for record in records %}
-                                    <tr>
-                                        <td>{{ record.user.first_name }} {{ record.user.last_name }}</td>
-                                        <td>{{ record.user.get_user_type_display }}</td>
-                                        <td>{{ record.check_in_time|time }}</td>
-                                        <td>{{ record.check_out_time|time|default:"Not checked out" }}</td>
-                                        <td>{{ record.purpose_of_visit }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        {% else %}
-                            <p>No attendance records for today.</p>
-                        {% endif %}
+{% block content %}
+<div class="container mt-4">
+    <!-- Improved header with icon and better styling -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-0"><i class="fas fa-clipboard-list text-primary mr-2"></i> Attendance Dashboard</h1>
+            <p class="text-muted">Welcome to the attendance management system</p>
+        </div>
+        <div>
+            <a href="{% url 'sign_attendance' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-sign-in-alt mr-2"></i> Sign In
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats row with count badges -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-light border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-primary">Today's Check-ins</h5>
+                    <h2 class="display-4">{{ today_records.count }}</h2>
+                    <p class="text-muted">Total attendance for {{ today|date:"F j, Y" }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h5 class="card-title text-primary">Quick Links</h5>
+                    <div class="d-flex flex-wrap">
+                        <a href="{% url 'attendance_list' %}" class="btn btn-outline-primary m-1">
+                            <i class="fas fa-list mr-2"></i> All Records
+                        </a>
+                        <a href="{% url 'analytics_dashboard' %}" class="btn btn-outline-success m-1">
+                            <i class="fas fa-chart-pie mr-2"></i> Analytics
+                        </a>
+                        <a href="{% url 'sign_attendance' %}" class="btn btn-outline-info m-1">
+                            <i class="fas fa-pen mr-2"></i> Manual Sign-in
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
-        {% else %}
-        <div class="alert alert-warning">
-            <p>You must be a staff member to view the detailed dashboard.</p>
-            <a href="{% url 'check_in' user.id %}" class="btn btn-primary">Check In</a>
-            <a href="{% url 'check_out' user.id %}" class="btn btn-secondary">Check Out</a>
-        </div>
-        {% endif %}
     </div>
-    {% endblock %}
-</body>
-</html>
+
+    <!-- Main content row -->
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-calendar-day mr-2"></i> Today's Attendance</h4>
+                    <span class="badge badge-light">{{ today|date:"F j, Y" }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Check-in Time</th>
+                                    <th>Check-out Time</th>
+                                    <th>Purpose</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in records %}
+                                <tr>
+                                    <td class="align-middle">
+                                        <strong>{{ record.user.first_name }} {{ record.user.last_name }}</strong>
+                                    </td>
+                                    <td class="align-middle">{{ record.user.get_user_type_display }}</td>
+                                    <td class="align-middle">{{ record.check_in_time|time:"h:i A" }}</td>
+                                    <td class="align-middle">
+                                        {% if record.check_out_time %}
+                                            {{ record.check_out_time|time:"h:i A" }}
+                                        {% else %}
+                                            <span class="text-muted">Not checked out</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="align-middle">{{ record.purpose_of_visit }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">
+                                        <i class="fas fa-user-clock fa-2x mb-3 d-block"></i>
+                                        No users have checked in today
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-bolt mr-2"></i> Quick Actions</h4>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for record in records %}
+                        {% if not record.check_out_time %}
+                        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center border-left-0 border-right-0">
+                            <div>
+                                <h6 class="mb-1">{{ record.user.first_name }} {{ record.user.last_name }}</h6>
+                                <small class="text-muted">Checked in: {{ record.check_in_time|time:"h:i A" }}</small>
+                            </div>
+                            <div>
+                                <a href="{% url 'check_out' record.user.id %}" class="btn btn-sm btn-outline-warning">
+                                    <i class="fas fa-sign-out-alt"></i> Check Out
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% empty %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-users fa-3x mb-3"></i>
+                            <p>No active check-ins to display</p>
+                            <a href="{% url 'sign_attendance' %}" class="btn btn-primary">
+                                Sign In Now
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
