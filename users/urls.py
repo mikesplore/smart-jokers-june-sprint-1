@@ -7,4 +7,5 @@ urlpatterns = [
     path('user/update/<int:pk>/', user_update, name='user-update'),
     path('user/delete/<int:pk>/', user_delete, name='user-delete'),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
+    path('profile/<int:user_id>/', UserProfileView.as_view(), name='user-profile-detail'),
 ]

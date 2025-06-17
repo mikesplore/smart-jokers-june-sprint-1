@@ -5,114 +5,83 @@ from django.utils.decorators import method_decorator
 from .models import User
 import json
 
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework.views import APIView
+from .serializers import UserSerializer
 
+
+@api_view(['GET'])
 def user_detail(request, pk):
     try:
         user = User.objects.get(pk=pk)
     except User.DoesNotExist:
-        return JsonResponse({'error': 'User not found'}, status=404)
-    if request.method == 'GET':
-        return JsonResponse({'user': {
-            'id': user.id,
-            'email': user.email,
-            'user_type': user.user_type,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'phone_number': user.phone_number,
-            'is_active': user.is_active,
-            'created_at': user.created_at,
-            'updated_at': user.updated_at,
-        }})
-    return HttpResponseNotAllowed(['GET'])
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = UserSerializer(user)
+    return Response(serializer.data)
 
 
-@csrf_exempt
+@api_view(['POST'])
 def user_create(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            user = User.objects.create(
-                email=data['email'],
-                user_type=data['user_type'],
-                first_name=data['first_name'],
-                last_name=data['last_name'],
-                phone_number=data['phone_number'],
-                is_active=data.get('is_active', True)
-            )
-            return JsonResponse({'id': user.id}, status=201)
-        except Exception as e:
-            return HttpResponseBadRequest(str(e))
-    return HttpResponseNotAllowed(['POST'])
+    serializer = UserSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@csrf_exempt
+@api_view(['PUT'])
 def user_update(request, pk):
     try:
         user = User.objects.get(pk=pk)
     except User.DoesNotExist:
-        return JsonResponse({'error': 'User not found'}, status=404)
-    if request.method == 'PUT':
-        try:
-            data = json.loads(request.body)
-            user.email = data.get('email', user.email)
-            user.user_type = data.get('user_type', user.user_type)
-            user.first_name = data.get('first_name', user.first_name)
-            user.last_name = data.get('last_name', user.last_name)
-            user.phone_number = data.get('phone_number', user.phone_number)
-            user.is_active = data.get('is_active', user.is_active)
-            user.save()
-            return JsonResponse({'success': True})
-        except Exception as e:
-            return HttpResponseBadRequest(str(e))
-    return HttpResponseNotAllowed(['PUT'])
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = UserSerializer(user, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@csrf_exempt
+@api_view(['DELETE'])
 def user_delete(request, pk):
     try:
         user = User.objects.get(pk=pk)
     except User.DoesNotExist:
-        return JsonResponse({'error': 'User not found'}, status=404)
-    if request.method == 'DELETE':
-        user.delete()
-        return JsonResponse({'success': True})
-    return HttpResponseNotAllowed(['DELETE'])
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    user.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
-class UserProfileView(View):
+class UserProfileView(APIView):
     def post(self, request, *args, **kwargs):
-        try:
-            data = json.loads(request.body)
-            user = User.objects.create(
-                email=data.get('email'),
-                first_name=data.get('first_name'),
-                last_name=data.get('last_name'),
-                phone_number=data.get('phone_number'),
-                user_type=data.get('user_type'),
-                is_active=data.get('is_active', True)
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {'message': 'User profile created successfully', 'user': serializer.data},
+                status=status.HTTP_201_CREATED
             )
-            return JsonResponse({'message': 'User profile created successfully', 'user_id': user.id}, status=201)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, *args, **kwargs):
-        return JsonResponse({'error': 'GET method is not allowed on this endpoint'}, status=405)
+        return Response({'error': 'GET method is not allowed on this endpoint'},
+                        status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def put(self, request, *args, **kwargs):
         try:
-            data = json.loads(request.body)
             user = User.objects.get(id=kwargs.get('user_id'))
-
-            # Update user fields
-            user.first_name = data.get('first_name', user.first_name)
-            user.last_name = data.get('last_name', user.last_name)
-            user.phone_number = data.get('phone_number', user.phone_number)
-            user.user_type = data.get('user_type', user.user_type)
-            user.save()
-
-            return JsonResponse({'message': 'User profile updated successfully'}, status=200)
+            serializer = UserSerializer(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {'message': 'User profile updated successfully', 'user': serializer.data},
+                    status=status.HTTP_200_OK
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)

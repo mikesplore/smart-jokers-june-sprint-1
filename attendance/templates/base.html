@@ -7,13 +7,6 @@
 </head>
 <body>
     <div class="container mt-4">
-        <nav class="mb-3">
-            <a href="{% url 'attendance_dashboard' %}">Dashboard</a> |
-            <a href="{% url 'sign_attendance' %}">Sign Attendance</a>
-            {% if user.is_staff %}
-            | <a href="{% url 'analytics_dashboard' %}">Analytics</a>
-            {% endif %}
-        </nav>
         {% block content %}
         <!-- Page content goes here -->
         {% endblock %}
