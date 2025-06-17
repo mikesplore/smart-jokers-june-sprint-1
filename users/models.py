@@ -63,7 +63,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number']
 
     def has_module_perms(self, app_label):
+        if self.is_superuser:
+            return True
         return self.is_staff and self.user_type == 'staff'
 
     def has_perm(self, perm, obj=None):
+        if self.is_superuser:
+            return True
         return self.is_staff and self.user_type == 'staff'
