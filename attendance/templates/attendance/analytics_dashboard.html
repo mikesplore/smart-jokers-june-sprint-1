@@ -141,6 +141,7 @@
 
 <!-- Include Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+{{ chart_data|json_script:"chart-data" }}
 <script>
     // Chart color palettes
     const primaryColors = [
@@ -189,9 +190,9 @@
             options: options
         });
     };
-    
     // Get data from context
-    const chartData = {{ chart_data|safe }};
+    // Safely load chart_data as JSON
+    const chartData = JSON.parse(document.getElementById('chart-data').textContent);
     
     // Initialize charts when page loads
     document.addEventListener('DOMContentLoaded', function() {
