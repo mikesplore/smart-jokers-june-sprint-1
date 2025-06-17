@@ -8,7 +8,6 @@ class AttendanceRecord(models.Model):
     check_in_time = models.DateTimeField(null=True, blank=True)
     check_out_time = models.DateTimeField(null=True, blank=True)
     date = models.DateField(default=timezone.now)
-    temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     purpose_of_visit = models.CharField(max_length=255, blank=True)
     comments = models.TextField(blank=True, default="")
     
