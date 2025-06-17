@@ -22,3 +22,5 @@ Follow the steps below:
 5. Use the daily sign-in form to get fields for the attendance app.
 6. Create APIS that can be consumed on the frontend: enable erveryone to checkin and checkout everyday
 7. Write tests for your Apps and APIs
+
+wait for instructions
