@@ -6,8 +6,14 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
+    {% extends "base.html" %}
+
+    {% block title %}Attendance Dashboard{% endblock %}
+
+    {% block content %}
     <div class="container mt-4">
         <h1>Attendance Dashboard</h1>
+        {% if user.is_staff %}
         <div class="row mt-3">
             <div class="col-md-12">
                 <div class="card">
@@ -15,13 +21,17 @@
                         <h3>Today's Attendance ({{ today|date:"F j, Y" }})</h3>
                     </div>
                     <div class="card-body">
-                        <a href="{% url 'attendance_list' %}" class="btn btn-info mb-3">View Full Attendance List</a>
+                        <div class="mb-3">
+                            <a href="{% url 'attendance_list' %}" class="btn btn-info mr-2">View Full Attendance List</a>
+                            <a href="{% url 'analytics_dashboard' %}" class="btn btn-success">View Analytics Dashboard</a>
+                        </div>
                         
                         {% if records %}
                             <table class="table table-striped">
                                 <thead>
                                     <tr>
                                         <th>Name</th>
+                                        <th>Type</th>
                                         <th>Check-in Time</th>
                                         <th>Check-out Time</th>
                                         <th>Purpose</th>
@@ -31,6 +41,7 @@
                                     {% for record in records %}
                                     <tr>
                                         <td>{{ record.user.first_name }} {{ record.user.last_name }}</td>
+                                        <td>{{ record.user.get_user_type_display }}</td>
                                         <td>{{ record.check_in_time|time }}</td>
                                         <td>{{ record.check_out_time|time|default:"Not checked out" }}</td>
                                         <td>{{ record.purpose_of_visit }}</td>
@@ -45,6 +56,14 @@
                 </div>
             </div>
         </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <p>You must be a staff member to view the detailed dashboard.</p>
+            <a href="{% url 'check_in' user.id %}" class="btn btn-primary">Check In</a>
+            <a href="{% url 'check_out' user.id %}" class="btn btn-secondary">Check Out</a>
+        </div>
+        {% endif %}
     </div>
+    {% endblock %}
 </body>
 </html>

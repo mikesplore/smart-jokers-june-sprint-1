@@ -16,9 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('users/', include('users.urls')),
     path('attendance/', include('attendance.urls')),
+    # Add this line to redirect root URL to the attendance dashboard
+    path('', RedirectView.as_view(url='/attendance/', permanent=False)),
 ]

@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Attendance Analytics Dashboard</h1>
+    
+    <!-- Date Range Filter -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Date Range Filter</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="form-inline">
+                <div class="form-group mr-3">
+                    <label for="date_from" class="mr-2">From:</label>
+                    <input type="date" id="date_from" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="form-group mr-3">
+                    <label for="date_to" class="mr-2">To:</label>
+                    <input type="date" id="date_to" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <button type="submit" class="btn btn-primary">Apply Filter</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary">
+                <div class="card-header">Today's Attendance</div>
+                <div class="card-body">
+                    <h1 class="card-title">{{ today_count }}</h1>
+                    <p class="card-text">{{ today_checked_in }} checked in, {{ today_checked_out }} checked out</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success">
+                <div class="card-header">Total Records</div>
+                <div class="card-body">
+                    <h1 class="card-title">{{ total_records }}</h1>
+                    <p class="card-text">For selected date range</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning">
+                <div class="card-header">Average Visit Duration</div>
+                <div class="card-body">
+                    <h1 class="card-title">{{ avg_duration_minutes }} min</h1>
+                    <p class="card-text">Average time spent</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Row 1 -->
+    <div class="row mb-4">
+        <!-- Daily Trend Chart -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Daily Attendance Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyTrendChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Type Distribution Chart -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Visits by User Type</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="userTypeChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Row 2 -->
+    <div class="row mb-4">
+        <!-- Hour Distribution Chart -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Check-in Time Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="hourDistributionChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Purpose of Visit Chart -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">Top Purposes of Visit</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="purposeChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Row 3 -->
+    <div class="row">
+        <!-- Weekly Trend Chart -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Weekly Attendance Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="weeklyTrendChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Monthly Trend Chart -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Monthly Attendance Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyTrendChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script>
+    // Chart color palettes
+    const primaryColors = [
+        'rgba(52, 152, 219, 0.8)',
+        'rgba(46, 204, 113, 0.8)',
+        'rgba(155, 89, 182, 0.8)',
+        'rgba(231, 76, 60, 0.8)',
+        'rgba(241, 196, 15, 0.8)',
+        'rgba(243, 156, 18, 0.8)',
+        'rgba(26, 188, 156, 0.8)',
+        'rgba(230, 126, 34, 0.8)',
+        'rgba(149, 165, 166, 0.8)',
+        'rgba(52, 73, 94, 0.8)'
+    ];
+    
+    // Chart setup function
+    const setupChart = (canvasId, type, labels, data, label, backgroundColor) => {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        
+        let chartConfig = {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: backgroundColor || primaryColors,
+                borderWidth: 1
+            }]
+        };
+        
+        let options = {
+            responsive: true,
+            maintainAspectRatio: false,
+        };
+        
+        if (type === 'bar') {
+            options.scales = {
+                y: {
+                    beginAtZero: true
+                }
+            };
+        }
+        
+        return new Chart(ctx, {
+            type: type,
+            data: chartConfig,
+            options: options
+        });
+    };
+    
+    // Get data from context
+    const chartData = {{ chart_data|safe }};
+    
+    // Initialize charts when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Daily trend chart
+        setupChart(
+            'dailyTrendChart', 
+            'line', 
+            chartData.daily_labels, 
+            chartData.daily_counts, 
+            'Daily Visits',
+            'rgba(52, 152, 219, 0.8)'
+        );
+        
+        // User type distribution chart
+        setupChart(
+            'userTypeChart', 
+            'pie', 
+            chartData.user_type_labels, 
+            chartData.user_type_counts, 
+            'User Type Distribution'
+        );
+        
+        // Hour distribution chart
+        setupChart(
+            'hourDistributionChart', 
+            'bar', 
+            chartData.hour_labels, 
+            chartData.hour_counts, 
+            'Check-in Hours',
+            'rgba(46, 204, 113, 0.8)'
+        );
+        
+        // Purpose chart
+        setupChart(
+            'purposeChart', 
+            'bar', 
+            chartData.purpose_labels, 
+            chartData.purpose_counts, 
+            'Purpose of Visit',
+            'rgba(155, 89, 182, 0.8)'
+        );
+        
+        // Weekly trend chart
+        setupChart(
+            'weeklyTrendChart', 
+            'line', 
+            chartData.weekly_labels, 
+            chartData.weekly_counts, 
+            'Weekly Visits',
+            'rgba(231, 76, 60, 0.8)'
+        );
+        
+        // Monthly trend chart
+        setupChart(
+            'monthlyTrendChart', 
+            'bar', 
+            chartData.monthly_labels, 
+            chartData.monthly_counts, 
+            'Monthly Visits',
+            'rgba(241, 196, 15, 0.8)'
+        );
+    });
+</script>
+{% endblock %}
