@@ -29,4 +29,4 @@ Generate dummy data. USe the signin form for table fields.
 
 ## Sprint 2:
 
-Create a Dashboard for the Staff users only that shows all probable analysis from data collected.
+Create a Dashboard for the Staff users only that shows all probable analysis from data collected. The Dashboard should be within the Django Project(i.e use django's template system for that)
