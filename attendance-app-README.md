@@ -43,7 +43,7 @@ class AttendanceRecord(models.Model):
         ordering = ['-date', '-check_in_time']
     
     def __str__(self):
-        return f"{self.user.username} - {self.date}"
+        return f"{self.user.email} - {self.date}"
 ```
 
 ## Forms
@@ -68,20 +68,21 @@ class CheckOutForm(forms.Form):
 Create the following views in `attendance/views.py`:
 
 ```python
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from users.models import User
 from .models import AttendanceRecord
 from .forms import CheckInForm, CheckOutForm
 
-@login_required
-def check_in(request):
+def check_in(request, user_id):
+    user = get_object_or_404(User, id=user_id)
     today = timezone.now().date()
     
     # Check if user already checked in today
     attendance, created = AttendanceRecord.objects.get_or_create(
-        user=request.user,
+        user=user,
         date=today,
     )
     
@@ -98,19 +99,22 @@ def check_in(request):
     else:
         form = CheckInForm(instance=attendance)
     
-    return render(request, 'attendance/check_in.html', {'form': form})
+    return render(request, 'attendance/check_in.html', {
+        'form': form,
+        'user': user
+    })
 
-@login_required
-def check_out(request):
+def check_out(request, user_id):
+    user = get_object_or_404(User, id=user_id)
     today = timezone.now().date()
     
     try:
         attendance = AttendanceRecord.objects.get(
-            user=request.user,
+            user=user,
             date=today,
         )
     except AttendanceRecord.DoesNotExist:
-        return render(request, 'attendance/not_checked_in.html')
+        return render(request, 'attendance/not_checked_in.html', {'user': user})
     
     if attendance.check_out_time:
         return render(request, 'attendance/already_checked_out.html', {'attendance': attendance})
@@ -126,11 +130,20 @@ def check_out(request):
     else:
         form = CheckOutForm()
     
-    return render(request, 'attendance/check_out.html', {'form': form, 'attendance': attendance})
+    return render(request, 'attendance/check_out.html', {
+        'form': form, 
+        'attendance': attendance,
+        'user': user
+    })
 
-@login_required
 def attendance_success(request):
     return render(request, 'attendance/success.html')
+
+# Admin view to see all attendance records
+def attendance_list(request):
+    today = timezone.now().date()
+    records = AttendanceRecord.objects.filter(date=today).order_by('-check_in_time')
+    return render(request, 'attendance/list.html', {'records': records})
 ```
 
 ## API Endpoints
@@ -142,6 +155,8 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
+from users.models import User
 from .models import AttendanceRecord
 from .serializers import AttendanceRecordSerializer
 
@@ -150,26 +165,33 @@ class AttendanceRecordViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        user = self.request.user
-        return AttendanceRecord.objects.filter(user=user)
+        return AttendanceRecord.objects.all()
     
     @action(detail=False, methods=['post'])
     def check_in(self, request):
         today = timezone.now().date()
         
+        if 'user_id' not in request.data:
+            return Response(
+                {"detail": "user_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        user = get_object_or_404(User, id=request.data['user_id'])
+        
         # Check if already checked in
         try:
             attendance = AttendanceRecord.objects.get(
-                user=request.user,
+                user=user,
                 date=today
             )
             if attendance.check_in_time:
                 return Response(
-                    {"detail": "Already checked in today"},
+                    {"detail": "User already checked in today"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         except AttendanceRecord.DoesNotExist:
-            attendance = AttendanceRecord(user=request.user, date=today)
+            attendance = AttendanceRecord(user=user, date=today)
         
         # Update with data from request
         attendance.check_in_time = timezone.now()
@@ -188,21 +210,29 @@ class AttendanceRecordViewSet(viewsets.ModelViewSet):
     def check_out(self, request):
         today = timezone.now().date()
         
+        if 'user_id' not in request.data:
+            return Response(
+                {"detail": "user_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        user = get_object_or_404(User, id=request.data['user_id'])
+        
         try:
             attendance = AttendanceRecord.objects.get(
-                user=request.user,
+                user=user,
                 date=today
             )
             
             if not attendance.check_in_time:
                 return Response(
-                    {"detail": "You need to check in first"},
+                    {"detail": "User needs to check in first"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
             if attendance.check_out_time:
                 return Response(
-                    {"detail": "Already checked out today"},
+                    {"detail": "User already checked out today"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
@@ -229,14 +259,22 @@ Create serializers in `attendance/serializers.py`:
 
 ```python
 from rest_framework import serializers
+from users.models import User
 from .models import AttendanceRecord
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'user_type']
+
 class AttendanceRecordSerializer(serializers.ModelSerializer):
+    user_details = UserSerializer(source='user', read_only=True)
+    
     class Meta:
         model = AttendanceRecord
-        fields = ['id', 'user', 'date', 'check_in_time', 'check_out_time', 
+        fields = ['id', 'user', 'user_details', 'date', 'check_in_time', 'check_out_time', 
                   'temperature', 'purpose_of_visit', 'comments']
-        read_only_fields = ['user', 'date', 'check_in_time', 'check_out_time']
+        read_only_fields = ['date', 'check_in_time', 'check_out_time']
 ```
 
 ## URL Configuration
@@ -253,9 +291,10 @@ router = DefaultRouter()
 router.register(r'records', api.AttendanceRecordViewSet, basename='attendance')
 
 urlpatterns = [
-    path('check-in/', views.check_in, name='check_in'),
-    path('check-out/', views.check_out, name='check_out'),
+    path('check-in/<int:user_id>/', views.check_in, name='check_in'),
+    path('check-out/<int:user_id>/', views.check_out, name='check_out'),
     path('success/', views.attendance_success, name='attendance_success'),
+    path('list/', views.attendance_list, name='attendance_list'),
     path('api/', include(router.urls)),
 ]
 ```
@@ -272,6 +311,7 @@ Create the following template files:
 4. `attendance/templates/attendance/already_checked_in.html` - Message when already checked in
 5. `attendance/templates/attendance/already_checked_out.html` - Message when already checked out
 6. `attendance/templates/attendance/not_checked_in.html` - Message when trying to check out without checking in
+7. `attendance/templates/attendance/list.html` - Admin view of all attendance records
 
 ## Testing Guidelines
 
@@ -281,18 +321,19 @@ Create the following tests in `attendance/tests.py`:
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+from users.models import User
 from .models import AttendanceRecord
 import json
 
-User = get_user_model()
-
 class AttendanceModelTest(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            username='testuser',
-            password='testpassword'
+        self.user = User.objects.create(
+            email='test@example.com',
+            user_type='staff',
+            first_name='Test',
+            last_name='User',
+            phone_number='1234567890'
         )
         
     def test_attendance_creation(self):
@@ -307,17 +348,19 @@ class AttendanceModelTest(TestCase):
 class AttendanceViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(
-            username='testuser',
-            password='testpassword'
+        self.user = User.objects.create(
+            email='test@example.com',
+            user_type='staff',
+            first_name='Test',
+            last_name='User',
+            phone_number='1234567890'
         )
-        self.client.login(username='testuser', password='testpassword')
         
     def test_check_in_view(self):
-        response = self.client.get(reverse('check_in'))
+        response = self.client.get(reverse('check_in', args=[self.user.id]))
         self.assertEqual(response.status_code, 200)
         
-        response = self.client.post(reverse('check_in'), {
+        response = self.client.post(reverse('check_in', args=[self.user.id]), {
             'temperature': '36.5',
             'purpose_of_visit': 'Work',
             'comments': 'Test comment'
@@ -333,10 +376,10 @@ class AttendanceViewTest(TestCase):
             check_in_time=timezone.now()
         )
         
-        response = self.client.get(reverse('check_out'))
+        response = self.client.get(reverse('check_out', args=[self.user.id]))
         self.assertEqual(response.status_code, 200)
         
-        response = self.client.post(reverse('check_out'), {
+        response = self.client.post(reverse('check_out', args=[self.user.id]), {
             'comments': 'Leaving early'
         })
         self.assertEqual(response.status_code, 302)  # Redirect after success
@@ -347,14 +390,17 @@ class AttendanceViewTest(TestCase):
 class AttendanceAPITest(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(
-            username='testuser',
-            password='testpassword'
+        self.user = User.objects.create(
+            email='test@example.com',
+            user_type='staff',
+            first_name='Test',
+            last_name='User',
+            phone_number='1234567890'
         )
-        self.client.force_authenticate(user=self.user)
         
     def test_check_in_api(self):
-        response = self.client.post(reverse('attendance-check-in'), {
+        response = self.client.post('/attendance/api/records/check_in/', {
+            'user_id': self.user.id,
             'temperature': '36.5',
             'purpose_of_visit': 'Work',
             'comments': 'API test'
@@ -370,7 +416,8 @@ class AttendanceAPITest(TestCase):
             check_in_time=timezone.now()
         )
         
-        response = self.client.post(reverse('attendance-check-out'), {
+        response = self.client.post('/attendance/api/records/check_out/', {
+            'user_id': self.user.id,
             'comments': 'Leaving via API'
         })
         self.assertEqual(response.status_code, 200)
@@ -390,9 +437,12 @@ from .models import AttendanceRecord
 @admin.register(AttendanceRecord)
 class AttendanceRecordAdmin(admin.ModelAdmin):
     list_display = ('user', 'date', 'check_in_time', 'check_out_time', 'temperature', 'purpose_of_visit')
-    list_filter = ('date', 'user')
-    search_fields = ('user__username', 'purpose_of_visit', 'comments')
+    list_filter = ('date', 'user__user_type')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'purpose_of_visit', 'comments')
     date_hierarchy = 'date'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
 ```
 
 ## Running Tests
