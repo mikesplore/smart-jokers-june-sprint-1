@@ -1,14 +1,9 @@
 from django.http import JsonResponse, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-import json
+from django.views import View
+from django.utils.decorators import method_decorator
 from .models import User
-
-
-def user_list(request):
-    if request.method == 'GET':
-        users = list(User.objects.values())
-        return JsonResponse({'users': users})
-    return HttpResponseNotAllowed(['GET'])
+import json
 
 
 def user_detail(request, pk):
@@ -82,3 +77,42 @@ def user_delete(request, pk):
         user.delete()
         return JsonResponse({'success': True})
     return HttpResponseNotAllowed(['DELETE'])
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UserProfileView(View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            user = User.objects.create(
+                email=data.get('email'),
+                first_name=data.get('first_name'),
+                last_name=data.get('last_name'),
+                phone_number=data.get('phone_number'),
+                user_type=data.get('user_type'),
+                is_active=data.get('is_active', True)
+            )
+            return JsonResponse({'message': 'User profile created successfully', 'user_id': user.id}, status=201)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    def get(self, request, *args, **kwargs):
+        return JsonResponse({'error': 'GET method is not allowed on this endpoint'}, status=405)
+
+    def put(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            user = User.objects.get(id=kwargs.get('user_id'))
+
+            # Update user fields
+            user.first_name = data.get('first_name', user.first_name)
+            user.last_name = data.get('last_name', user.last_name)
+            user.phone_number = data.get('phone_number', user.phone_number)
+            user.user_type = data.get('user_type', user.user_type)
+            user.save()
+
+            return JsonResponse({'message': 'User profile updated successfully'}, status=200)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
