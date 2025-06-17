@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Check In</h1>
+    <h3>{{ user.first_name }} {{ user.last_name }}</h3>
+    <p>Email: {{ user.email }}</p>
+    <p>User Type: {{ user.get_user_type_display }}</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Check In</button>
+    </form>
+</div>
+{% endblock %}
