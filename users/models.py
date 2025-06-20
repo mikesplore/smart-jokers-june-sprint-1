@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -39,15 +39,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         updated_at (datetime): Timestamp when the user was last updated.
     """
     email = models.EmailField(unique=True)
-    user_type = models.CharField(max_length=20, choices=[
-        ('member', 'Member'),
-        ('visitor', 'Visitor'),
-        ('staff', 'Staff'),
-        ('attachee', 'Attachee'),
-        ('not-sure', 'Not Sure'),
-    ])
-    first_name = models.CharField(max_length=30)
-    last_name = models.CharField(max_length=30)
+    first_name = models.CharField(max_length=30, blank=True)
+    last_name = models.CharField(max_length=30, blank=True)
     phone_number = models.CharField(max_length=15)
     password = models.CharField(max_length=128, default='defaultpassword')
     is_active = models.BooleanField(default=True)
@@ -55,6 +48,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_superuser = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    USER_TYPE_CHOICES = (
+        ('staff', 'Staff'),
+        ('community', 'Community Member'),
+        ('visitor', 'Visitor'),
+        ('attachee', 'Attachee'),
+        ('member', 'Member'),
+        ('not-sure', 'Not Sure'),
+    )
+    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='community')
+
+    # Remove any groups related field or relationship here
+    # If using PermissionsMixin, we need to explicitly set:
+    groups = None  # Remove the groups relationship
 
     objects = CustomUserManager()
 
